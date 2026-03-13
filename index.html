@@ -3,9 +3,9 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; }
-        #player { width: 100vw; height: 100vh; }
-        /* Removed the #doneBtn CSS */
+        /* This ensures there is no white flash or weird spacing */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+        #player { width: 100vw; height: 100vh; pointer-events: auto; }
     </style>
 </head>
 <body>
@@ -16,6 +16,7 @@
         const videoId = urlParams.get('v');
         const startPos = urlParams.get('start') || 0;
 
+        // Load the YouTube Iframe Player API code asynchronously.
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -23,29 +24,51 @@
 
         var player;
         function onYouTubeIframeAPIReady() {
+            if (!videoId) {
+                console.error("No Video ID provided in URL");
+                return;
+            }
             player = new YT.Player('player', {
                 videoId: videoId,
                 playerVars: { 
                     'autoplay': 1, 
                     'modestbranding': 1, 
+                    'rel': 0,
+                    'showinfo': 0,
                     'playsinline': 1,
+                    'controls': 0, // Hide YouTube controls for the TikTok feel
                     'start': parseInt(startPos) 
                 },
-                events: { 'onStateChange': onPlayerStateChange }
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
             });
+        }
+
+        function onPlayerReady(event) {
+            event.target.playVideo(); // Force play when ready
+        }
+
+        function onPlayerError(e) {
+            console.error("YouTube Player Error: " + e.data);
         }
 
         // --- ANALYTICS HEARTBEAT ---
         setInterval(function() {
             if (player && player.getCurrentTime && window.AndroidInterface) {
-                window.AndroidInterface.updateAnalytics(player.getCurrentTime(), player.getDuration());
+                try {
+                    window.AndroidInterface.updateAnalytics(player.getCurrentTime(), player.getDuration());
+                } catch(err) {
+                    console.error("Bridge Error", err);
+                }
             }
         }, 5000); 
 
         function onPlayerStateChange(event) {
-            // When video ends (state 0), tell Android to auto-complete
-            if (event.data === 0 && window.AndroidInterface) {
-                window.AndroidInterface.onTaskComplete();
+            if (event.data === YT.PlayerState.ENDED) {
+                if (window.AndroidInterface) window.AndroidInterface.onTaskComplete();
             }
         }
     </script>
