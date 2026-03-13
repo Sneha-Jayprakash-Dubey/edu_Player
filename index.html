@@ -5,16 +5,16 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; }
         #player { width: 100vw; height: 100vh; }
-        #doneBtn { position: absolute; bottom: 20px; right: 20px; padding: 12px 20px; background: #fff; border: none; border-radius: 25px; font-weight: bold; z-index: 10; }
+        /* Removed the #doneBtn CSS */
     </style>
 </head>
 <body>
     <div id="player"></div>
-    <button id="doneBtn" onclick="sendToAndroid()">Mark as Completed</button>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const videoId = urlParams.get('v');
+        const startPos = urlParams.get('start') || 0;
 
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -25,27 +25,28 @@
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('player', {
                 videoId: videoId,
-                playerVars: { 'autoplay': 1, 'modestbranding': 1, 'playsinline': 1 },
+                playerVars: { 
+                    'autoplay': 1, 
+                    'modestbranding': 1, 
+                    'playsinline': 1,
+                    'start': parseInt(startPos) 
+                },
                 events: { 'onStateChange': onPlayerStateChange }
             });
         }
 
-        // --- BEHAVIOR ANALYTICS HEARTBEAT ---
+        // --- ANALYTICS HEARTBEAT ---
         setInterval(function() {
             if (player && player.getCurrentTime && window.AndroidInterface) {
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
-                // Send real-time playback data to Kotlin
-                window.AndroidInterface.updateAnalytics(currentTime, duration);
+                window.AndroidInterface.updateAnalytics(player.getCurrentTime(), player.getDuration());
             }
         }, 5000); 
 
         function onPlayerStateChange(event) {
-            if (event.data === 0) sendToAndroid(); // Auto-complete on end
-        }
-
-        function sendToAndroid() {
-            if (window.AndroidInterface) window.AndroidInterface.onTaskComplete();
+            // When video ends (state 0), tell Android to auto-complete
+            if (event.data === 0 && window.AndroidInterface) {
+                window.AndroidInterface.onTaskComplete();
+            }
         }
     </script>
 </body>
