@@ -54,6 +54,16 @@
             if (event.data === 0) sendToAndroid(); // Auto-complete on end
         }
 
+            // Add this inside your <script> tag in index.html
+        function togglePlay() {
+            if (player.getPlayerState() === 1) { // 1 = playing
+                player.pauseVideo();
+                window.AndroidInterface.onStateChanged(false);
+            } else {
+                player.playVideo();
+                window.AndroidInterface.onStateChanged(true);
+            }
+        }
         function sendToAndroid() {
             if (window.AndroidInterface) window.AndroidInterface.onTaskComplete();
         }
